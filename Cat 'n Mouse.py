@@ -408,12 +408,12 @@ class Cat:
 
         }
         self.dialogue_lines = {
-            "1": Dialogue(["Don't leave me yet.", "Just let me finish installing all my \nvirus files on your PC...", "Did I say viruses? \nI meant all the game files!"], 5, 2),
+            "1": Dialogue(["Don't leave me yet.", "Just let me finish installing all my \nvirus files on your PC...", "Did I say virus? \nI meant all the game files!"], 5, 2),
             "2": Dialogue(["No.", "Don't click that button."], 2, 1),
-            "3": Dialogue(["Stop that."]),
-            "4": Dialogue(["Stop that!"]),
-            "5": Dialogue(["Catch it, if you can =)", "Ha-ha!", "Too slow!", "I could do this all day", "self.dialogue_lines[Taunt_4].get_line(dt)"], -1, 1),
-            "7": Dialogue(["No, you can't do this to me!", "N̴o,̨ ͟you c̛an't́ ̧d̶o̴ ̡this ̷t̴o m͏e!", "Stop it!", "St̨o͠p̀ i̸t̡!" "01000101 01110010 01110010 01101111 01110010", "Error", "Traceback (most recent call last):\n line 413, in <module>\ncurrent_lines = self.dialogue_lines[Pain_5].get_line(dt)\nNameError: name 'self' is not defined",], 0.5, 0),
+            "3": Dialogue(["Stop that.", "You're really bothering me by trying to close me", "Bypassing antiviruses is quite difficult these days, you know?", "God, why does no one appreciate my efforts?"], 5, 3),
+            "4": Dialogue(["Stop that!", "You won't be able to play the game if you don't stop closing me!", "You won't be able to play the game if you don't stop closing me!", "You won't be able to play the game if you don't stop closing me!", "Oh, wait, you... You actually listened to me?", "Well, thank you?", "...", "Wellp, so you don't get bored and close me again,\nI'll tell you a little story...", "„Once upon a time, there was a little white mouse.", "She was very afraid of the cat.", "But the the cat was actually nice! =)", "Yet, the mouse wanted to lock the cat in a cage, run an antivirus scan on him, and throw him in the trash can.", "But when the mouse tried to do that, sh̴e̴ rea̷l̷ly̸ d̵idn̴’̵t like̵ w̶hat̴ ha̸p̵pen̵e̴d next̷...", "Then, another mouse stumbled upon this cat.", "She was afraid of him too, and began to plot something mischievous.", "However, the cat noticed this, and decided to warn her what would happen if she tried to do anything to him.", "He told a little story about what had happened some time ago:"], 5, 8),
+            "5": Dialogue(["Okay, if that's what you want, then close me. If you can =)", "Ha-ha!", "Too slow!", "I could do this all day", "self.dialogue_lines[Taunt_4].get_line(dt)", "It's right hier!", "You missed!"], -1, 1),
+            "7": Dialogue(["No, you can't do this to me!", "N̴o,̨ ͟you c̛an't́ ̧d̶o̴ ̡this ̷t̴o m͏e!", "Stop it!", "St̨o͠p̀ i̸t̡!", "Don't click that button.", "Do̵n'̵t̸ c̴li̷c̵k th̴a̶t̸ bu̵t̵t̴on̵.", "01000101 01110010 01110010 01101111 01110010", "Error", "Traceback (most recent call last):\n line 416, in <module>\ncurrent_lines = self.dialogue_lines[Pain_5].get_line(dt)\nNameError: name 'self' is not defined",], 0.5, 0),
         }
         self.eyes_sprite = get_image('Eyes.png')
 
