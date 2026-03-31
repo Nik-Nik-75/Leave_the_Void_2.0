@@ -1,3 +1,4 @@
-This game only requires a mouse
+This game was made in 1 week as an April Fools' joke.
 
-If necessary (e.g., Soft Lock), press Shift + Esc to exit
+This game only requires a mouse;
+If necessary (e.g., Soft Lock), press Shift + Esc to exit.
