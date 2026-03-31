@@ -1,8 +1,10 @@
 import pygame
+import sys
 import os
 from PIL import Image
 import random
 import math
+import time
 
 ################################### Pygame setup ###################################
 pygame.init()
@@ -18,6 +20,14 @@ dt = 0
 
 
 #################################### Get assets ####################################
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS  # PyInstaller folder
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 _image_library = {}
 def get_image(path):
     global _image_library
@@ -25,7 +35,7 @@ def get_image(path):
     image = _image_library.get(path)
     if image == None:
         canonicalized_path = path.replace('/', os.sep)
-        image = pygame.image.load(canonicalized_path)
+        image = pygame.image.load(resource_path(canonicalized_path))
         _image_library[path] = image
     return image
 
@@ -36,7 +46,7 @@ def play_sound(path, volume=1.0, loops=0):
     sound = _sound_library.get(path)
     if sound == None:
         canonicalized_path = path.replace('/', os.sep)
-        sound = pygame.mixer.Sound(canonicalized_path)
+        sound = pygame.mixer.Sound(resource_path(canonicalized_path))
         sound.set_volume(volume)
         _sound_library[path] = sound
     channel = sound.play(loops)
@@ -49,20 +59,23 @@ def play_music(path, number_of_repeats):
     music = _music_library.get(path)
     if music == None:
         canonicalized_path = path.replace('/', os.sep)
-        music = pygame.mixer.music.load(canonicalized_path)
+        music = pygame.mixer.music.load(resource_path(canonicalized_path))
         _music_library[path] = music
     channel = pygame.mixer.music.play(number_of_repeats)
     return channel'''
 
 #####################################################################################
 
-
+icon = get_image("icon.png")
+pygame.display.set_icon(icon)
+pygame.display.set_caption("Live the void 2.0")
 
 
 
 ##################################### Variables #####################################
 event_number = 0
 font = pygame.font.Font(None, 72)
+_difficulty = 1.0
 
 #####################################################################################
 
@@ -126,18 +139,19 @@ class Music():
         self.ch2 = None
         self.ch1_volume = 1
         self.ch2_volume = 0
-        self.activ_ch = 1
+        self.ch1_volume_moveto = 1
+        self.ch2_volume_moveto = 0
 
     def update(self, dt):
         if self.ch1 != None:
-            if self.activ_ch == 1:
-                self.ch1_volume = min(self.ch1_volume + dt, 1)
-                self.ch2_volume = max(self.ch2_volume - dt, 0)
-            elif self.activ_ch == 2:
-                self.ch1_volume = max(self.ch1_volume - dt, 0)
-                self.ch2_volume = min(self.ch2_volume + dt, 1)
-            else:
-                print("Music class self.activ_ch error")
+
+            self.ch1_volume += (self.ch1_volume_moveto-self.ch1_volume)*dt*2
+            self.ch2_volume += (self.ch2_volume_moveto-self.ch2_volume)*dt*2
+            if abs(self.ch1_volume_moveto-self.ch1_volume) < 0.01:
+                self.ch1_volume = self.ch1_volume_moveto
+            if abs(self.ch2_volume_moveto-self.ch2_volume) < 0.01:
+                self.ch2_volume = self.ch2_volume_moveto
+
             self.ch1.set_volume(self.ch1_volume)
             self.ch2.set_volume(self.ch2_volume)
 
@@ -146,7 +160,11 @@ class Music():
         self.ch2 = play_sound(self.activ, 0.9, -1)
 
     def switch(self):
-        self.activ_ch = max((self.activ_ch+1)%3, 1)
+        new_ch1_volume = self.ch2_volume_moveto
+        new_ch2_volume = self.ch1_volume_moveto
+        
+        self.ch1_volume_moveto = new_ch1_volume
+        self.ch2_volume_moveto = new_ch2_volume
 
 music = Music("Battle.ogg", "Battle dirty.ogg")
 
@@ -313,7 +331,8 @@ class Mouse:
         self.states_logic(dt)
 
     def states_logic(self, dt):
-        self.glitch_chance = max(self.glitch_chance - dt*0.01, 0)
+        global _difficulty
+        self.glitch_chance = max(self.glitch_chance - dt*0.01 * (2 - _difficulty), 0)
         if self.state == "default":
             chance_per_second = self.glitch_chance
             chance_this_frame = 1 - math.exp(-chance_per_second * dt)
@@ -335,7 +354,7 @@ class Mouse:
 
         elif self.state == "corruptet":
             self.move(dt)
-            if 1 + (random.random()*2.5) + self.glitch_chance*2 <= self.uncorrupt_timer:
+            if 1 + (random.random()*2.5) + self.glitch_chance*1.8 <= self.uncorrupt_timer:
                 self.uncorrupt_timer = 0
                 self.state = "default"
             else:
@@ -343,15 +362,18 @@ class Mouse:
 
                 mouse_vec = pygame.Vector2(self.pos)
                 if mouse_vec.distance_to(cat.pos) < 700 and cat.state == "chase":   #if cat is near the mouse, uncorrupt timer go faster
-                    self.uncorrupt_timer += dt*2
+                    self.uncorrupt_timer += dt*3
 
     def corrupt(self):
+        global _difficulty
+        _difficulty = max(_difficulty-0.06, 0.3)
         play_sound("Hurt.wav", 0.5)
         if self.hp > 1:
             mouse.hp -= 1
         else:
-            self.glitch_chance += 0.2
+            self.glitch_chance += 0.11
         self.glitch_chance += 0.11
+        self.glitch_chance = min(self.glitch_chance, 2)
         self.state = "corruptet"
         self.uncorrupt_timer = 0
 
@@ -381,9 +403,9 @@ class Cat:
     def __init__(self, name, pos):
         self.pos = pos
         self.direction = 0
-        self.speed = 700
+        self.speed = 900
         self.stamina = 100
-        self.stamina_regen = 4 #per second
+        self.stamina_regen = 3.8 #per second
         self.stamina_cost = 17
         self.stamina_bar = Progress_bar(max_hp=self.stamina, size=500, pos=pygame.Vector2(270, 20), color="white", low_hp_percent=self.stamina_cost*0.01)
         self.max_hp = 15
@@ -391,6 +413,7 @@ class Cat:
         self.hp_bar = Progress_bar(max_hp=self.max_hp, size=500, pos=pygame.Vector2(270, 80), color="red")
         self.state = "chase"
         self.damage_state = "default"
+        self.tactic = "default"
         self.damage_animation_timer = 0
         self.hitbox_radius = 20
         self.transparency = 255
@@ -408,28 +431,37 @@ class Cat:
 
         }
         self.dialogue_lines = {
-            "1": Dialogue(["Don't leave me yet.", "Just let me finish installing all my \nvirus files on your PC...", "Did I say virus? \nI meant all the game files!"], 5, 2),
+            "1": Dialogue(["Don't leave me yet.", "Just let me finish installing all my\nvirus files on your PC...", "Did I say virus?\nI meant all the game files!"], 4.5, 2),
             "2": Dialogue(["No.", "Don't click that button."], 2, 1),
-            "3": Dialogue(["Stop that.", "You're really bothering me by trying to close me", "Bypassing antiviruses is quite difficult these days, you know?", "God, why does no one appreciate my efforts?"], 5, 3),
-            "4": Dialogue(["Stop that!", "You won't be able to play the game if you don't stop closing me!", "You won't be able to play the game if you don't stop closing me!", "You won't be able to play the game if you don't stop closing me!", "Oh, wait, you... You actually listened to me?", "Well, thank you?", "...", "Wellp, so you don't get bored and close me again,\nI'll tell you a little story...", "„Once upon a time, there was a little white mouse.", "She was very afraid of the cat.", "But the the cat was actually nice! =)", "Yet, the mouse wanted to lock the cat in a cage, run an antivirus scan on him, and throw him in the trash can.", "But when the mouse tried to do that, sh̴e̴ rea̷l̷ly̸ d̵idn̴’̵t like̵ w̶hat̴ ha̸p̵pen̵e̴d next̷...", "Then, another mouse stumbled upon this cat.", "She was afraid of him too, and began to plot something mischievous.", "However, the cat noticed this, and decided to warn her what would happen if she tried to do anything to him.", "He told a little story about what had happened some time ago:"], 5, 8),
-            "5": Dialogue(["Okay, if that's what you want, then close me. If you can =)", "Ha-ha!", "Too slow!", "I could do this all day", "self.dialogue_lines[Taunt_4].get_line(dt)", "It's right hier!", "You missed!"], -1, 1),
-            "7": Dialogue(["No, you can't do this to me!", "N̴o,̨ ͟you c̛an't́ ̧d̶o̴ ̡this ̷t̴o m͏e!", "Stop it!", "St̨o͠p̀ i̸t̡!", "Don't click that button.", "Do̵n'̵t̸ c̴li̷c̵k th̴a̶t̸ bu̵t̵t̴on̵.", "01000101 01110010 01110010 01101111 01110010", "Error", "Traceback (most recent call last):\n line 416, in <module>\ncurrent_lines = self.dialogue_lines[Pain_5].get_line(dt)\nNameError: name 'self' is not defined",], 0.5, 0),
+            "3": Dialogue(["Stop that.", "You're really bothering me\nby trying to close me", "Bypassing antiviruses is\nquite difficult these days, you know?", "God, why does no one appreciate\nmy work?"], 4.5, 3),
+            "4": Dialogue(["Stop that!", "You won't be able to play the game\nif you don't stop trying to close me!", "You won't be able to play the game\nif you don't stop trying to close me!", "You won't be able to play the game\nif you don't stop trying to close me!", "Oh, wait, you... You actually listened to me?", "Well, thank you?", "...", "Wellp, so you don't get bored and\nclose me again, I'll tell you\na little story...", "„Once upon a time,\nthere was a little white mouse.", "She was very afraid of the cat.", "But the the cat was actually nice! =)", "Yet, the mouse wanted to\nlock the cat in a cage, run an\nantivirus scan on him, and throw him\nin the trash can.", "But when the mouse tried to do that...", "s̷he̸ real̸ly͟ ̛d͝idn’̕t l̡ike ̴wha͢t ha͠ppe͞n͢ed͡ néxt̴.͢", "Then, another mouse stumbled upon\nthis cat.", "She was afraid of him too,\nand began to plot something mischievous.", "However, the cat noticed this,\nand decided to warn her what\nwould happen if she tried to do anything to him.", "He told a little story about\nwhat had happened some time ago:"], 4.5, 8),
+            "5": Dialogue(["Okay, if that's what you want, then close me.\nIf you can =)", "Ha-ha!", "Too slow!", "I could do this all day", "self.dialogue_lines[Taunt_4].get_line(dt)", "It's right hier!", "You missed!"], -1, 1),
+            "7": Dialogue(["No, you can't do this to me!", "N̴o,̨ ͟you c̛an't́ ̧d̶o̴ ̡this ̷t̴o m͏e!", "Stop it!", "St̨o͠p̀ i̸t̡!", "Don't click that button.", "Do͡n̶'t͞ cl̡ick͟ ̶that ̢button.́", "01000101 01110010 01110010 01101111 01110010", "Error", "Traceback (most recent call last):\n"+os.path.abspath(__file__)+"\n line 416, in <module>\ncurrent_lines = self.dialogue_lines[Pain_5].get_line(dt)\nNameError: name 'self' is not defined",], 0.5, 0),
         }
         self.eyes_sprite = get_image('Eyes.png')
 
     def update(self, surface, dt):
-        self.states_logic()
+        global _difficulty
+        _difficulty = max(_difficulty-0.008*dt, 0.3)
+
+        self.states_logic(dt)
         self.draw(surface)
-        self.stamina = min(self.stamina + dt * self.stamina_regen, 100)
+        slow_regen = (1-_difficulty)*2
+        self.stamina = min(self.stamina + (self.stamina_regen-slow_regen) * dt , 100)
+
+        #text_surface = font.render(str(_difficulty), True, (0, 128, 0))
+        #surface.blit(text_surface, (get_mid_screen().x - text_surface.get_width()//2, 200 - text_surface.get_height()//2))
+
         if self.stamina < 100:
             self.stamina_bar.pos=pygame.Vector2(270, 10)
             self.stamina_bar.update(self.stamina)
         if self.hp < self.max_hp:
             self.hp_bar.pos=pygame.Vector2(270, 60)
             self.hp_bar.update(self.hp)
+
         if self.damage_state == "damage":
             self.damage_animation_timer += dt
-            if self.damage_animation_timer >= (self.max_hp-self.hp)*0.1:
+            if self.damage_animation_timer >= ((self.max_hp-self.hp)//3)*0.1 + 0.2:
                 self.damage_animation_timer = 0
                 self.damage_state = "default"
 
@@ -455,7 +487,7 @@ class Cat:
         else:
             sprite = self.sprites[self.state][self.damage_state].get_random_frame(dt)
 
-        if random.random()*(self.max_hp-self.hp) >= 10:
+        if random.randint(0,(self.max_hp-self.hp)) >= 10:
             sprite = self.sprites[self.state]["damage"].get_random_frame(dt)
 
         sprite.set_alpha(self.transparency)
@@ -472,17 +504,26 @@ class Cat:
 
     ################################## Logic ##################################
     def damage(self):
+        global _difficulty
+        _difficulty = min(_difficulty + 0.08, 1)
         self.hp -= 1
+        if self.hp == self.max_hp-1:
+            self.first_hit()
         if self.hp == 5:
-            self.special_hit()
+            self.spesial_hit()
         self.damage_state = "damage"
         play_sound("Cat Hurt.wav")
         self.stamina = 0
         if self.hp % 4 == 0:
-            self.speed += 50
+            self.speed += 45
 
-    def special_hit(self):
-        music.switch()
+    def first_hit(self):
+        music.ch1_volume_moveto = 0.9
+        music.ch2_volume_moveto = 0.5
+        self.speed -= 150
+    def spesial_hit(self):
+        music.ch2_volume_moveto = 1
+        music.ch1_volume_moveto = 0
 
     def catch(self):
         self.state = "laugh"
@@ -499,8 +540,15 @@ class Cat:
         self.transparency += 20 * dt/delay
         self.transparency = min(255, self.transparency)
 
-    def states_logic(self):
+    def states_logic(self, dt):
         mouse_pos = pygame.mouse.get_pos()
+
+        chance_per_second = 0.2
+        chance_this_frame = 1 - math.exp(-chance_per_second * dt)
+        if random.random() < chance_this_frame:
+            self.tactic = random.choice(["default", "mouse", "button", "random"])
+
+
         if self.state == "laugh":
             if self.transparency == 0:
                 self.pos = teleport_from_mouse(700)
@@ -522,33 +570,49 @@ class Cat:
 
 
     def move(self, dt):
+        global _difficulty
         mouse_pos = pygame.mouse.get_pos()
         mid_screen = get_mid_screen()
 
         self.direction = turn_to(self.pos, mid_screen)
-        self.pos += self.speed/4 * self.direction * dt
+        self.pos += self.speed*0.2 * self.direction * dt
     
-        if self.hp > 5:
-            modifier = 1
-        else: 
-            modifier = 1 + (6-self.hp)*0.19
+        modifier = 1
+        if self.tactic == "mouse":
+            modifier += 0.4
+        if self.hp <= 5:
+            modifier += (6-self.hp)*0.16  
+        if self.tactic == "random":
+            modifier = random.random()*modifier*2+0.2
+        if mouse.state == "corruptet":
+            modifier = modifier * 0.5
         self.direction = turn_to(self.pos, mouse_pos)
-        self.pos += self.speed*modifier * self.direction * dt
+        self.pos += self.speed*modifier * self.direction * dt * _difficulty
 
-        if self.stamina > self.stamina_cost:
+
+        if self.stamina > self.stamina_cost*3:
             modifier = 0.4
         else: 
             modifier = 0.5
+        if self.tactic == "button":
+            modifier += 0.3
+        if self.tactic == "random":
+            modifier = random.random()*modifier*2+0.1
+        if self.pos.distance_to(close_button.pos) < 50:
+            modifier = modifier * 0.6
         self.direction = turn_to(self.pos, close_button.pos)
-        self.pos += self.speed*modifier * self.direction * dt
+        self.pos += self.speed*modifier * self.direction * dt * _difficulty
     
-        if self.pos.distance_to(mouse_pos) > 40:
+
+        if self.pos.distance_to(mouse_pos) > 200:
             modifier = 0.7
+        elif self.pos.distance_to(mouse_pos) > 40:
+            modifier = 0.5
         else: 
             modifier = 0.3
         for dot in dots:
             self.direction = turn_to(self.pos, dot.pos)
-            self.pos -= self.speed*modifier * self.direction * dt 
+            self.pos -= self.speed*modifier * self.direction * dt * min(_difficulty*1.5, 1)
 
 
         self.pos.x = max(0, min(self.pos.x, screen.get_width()))
@@ -606,15 +670,20 @@ class Button:
             self.state = "default"
 
     def teleport_if_can(self, event_number, dt):
+        global _difficulty
         if cat.stamina > cat.stamina_cost and event_number >= 6:
                 self.pos = teleport_from_mouse(700)
+                play_sound("Button TP.wav")
                 cat.stamina -= cat.stamina_cost
+                _difficulty = min(_difficulty + 0.035, 1)
+
 
         elif event_number == 5:
             self.timer += dt
             if self.timer > 0.18:
                 self.timer = 0.0
                 self.pos = teleport_from_mouse(300)
+                play_sound("Button TP.wav")
                 cat.dialogue_lines[str(event_number)].set_random_line()
 
     def click(self, event):
@@ -653,8 +722,13 @@ class Dot():
 
     def move(self, dt):
         self.pos += self.speed * self.direction * dt
-        if random.randint(1, 38) == 1:
+
+        chance_per_second = 1.5
+        chance_this_frame = 1 - math.exp(-chance_per_second * dt)
+        if random.random() < chance_this_frame:      
             self.direction = turn_to(self.pos, cat.pos)
+            if random.randint(1, 15) == 1:
+                self.direction = turn_to(self.pos, close_button.pos)
             self.direction.rotate_ip(random.randint(-50, 50))
         self.pos.x = max(0, min(self.pos.x, screen.get_width()))
         self.pos.y = max(0, min(self.pos.y, screen.get_height()))
@@ -674,6 +748,11 @@ loading_bar = Progress_bar(max_hp=1000, size=950, pos=pygame.Vector2(get_mid_scr
 loading_bar.hp = 0
 
 while running:
+
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_ESCAPE] and (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]):
+        pygame.quit()
+
     # poll for events
     # pygame.QUIT event means the user clicked X 
     for event in pygame.event.get():
@@ -729,7 +808,7 @@ while running:
         
     
 
-    #debug
+    ##debug##
     #for dot in dots:
     #    dot.draw(screen)
     #pygame.draw.circle(screen, "red", cat.pos, cat.hitbox_radius)
@@ -743,4 +822,10 @@ while running:
     # independent physics.
     dt = clock.tick(60) / 1000
 
+
+
+pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_WAITARROW)
+pygame.mixer.stop()
+play_sound("Kill Cat.wav")
+time.sleep(1)
 pygame.quit()
